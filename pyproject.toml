@@ -1,0 +1,27 @@
+[build-system]
+requires = ["scikit-build-core>=0.10", "numpy>=1.26"]
+build-backend = "scikit_build_core.build"
+
+[project]
+name = "gstreamer-opencv-wheel-builder"
+version = "0.1.0"
+description = "OpenCV with GStreamer support wheel builder for Raspberry Pi"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = ["numpy>=1.26"]
+
+[tool.cibuildwheel]
+build = "cp312-*"
+archs = "aarch64"
+
+before-all = """
+yum install -y gcc gcc-c++ make cmake pkgconfig git ninja-build \
+	gtk2-devel gtk3-devel \
+    gstreamer1-devel gstreamer1-plugins-base-devel \
+    gstreamer1-plugins-good gstreamer1-plugins-bad-free \
+	python3-devel && \
+git clone --depth 1 --branch 4.13.0 https://github.com/opencv/opencv.git /tmp/opencv
+"""
+
+[tool.cibuildwheel.linux]
+build-frontend = "pip"
