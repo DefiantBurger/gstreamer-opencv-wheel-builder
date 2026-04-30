@@ -13,6 +13,11 @@ jobs:
         with:
           persist-credentials: false
 
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+
       - name: Register QEMU emulation for arm64
         uses: docker/setup-qemu-action@v4
         with:

@@ -1,47 +1,23 @@
 [build-system]
-requires = ["scikit-build-core>=0.10", "numpy>=1.26"]
-build-backend = "scikit_build_core.build"
+requires = ["setuptools>=61", "wheel"]
+build-backend = "setuptools.build_meta"
 
 [project]
 name = "gstreamer-opencv-wheel-builder"
-version = "0.1.0"
-description = "OpenCV with GStreamer support wheel builder for Raspberry Pi"
-readme = "README.md"
-requires-python = ">=3.12"
-dependencies = ["numpy>=1.26"]
+version = "4.13.0"
 
 [tool.cibuildwheel]
-build = "cp312-*"
-archs = ["aarch64", "x86_64"]
-
+build = "cp312-*"  # Python 3.12 only
+build-frontend = "pip"
 before-all = """
 set -eux
 
 yum install -y gcc gcc-c++ make cmake pkgconfig git ninja-build \
     gtk2-devel gtk3-devel \
     gstreamer1-devel gstreamer1-plugins-base-devel \
-    gstreamer1-plugins-good gstreamer1-plugins-bad-free
-
-git clone --depth 1 --branch 4.13.0 https://github.com/opencv/opencv.git /tmp/opencv
-
-# Build OpenCV libraries (without Python bindings, those are built per-wheel)
-cmake -S /tmp/opencv -B /tmp/opencv/build -G Ninja \
-  -D CMAKE_BUILD_TYPE=Release \
-  -D CMAKE_INSTALL_PREFIX=/usr/local \
-  -D WITH_GSTREAMER=ON \
-  -D WITH_IPP=OFF \
-  -D BUILD_SHARED_LIBS=ON \
-  -D BUILD_LIST=core,imgproc,videoio,imgcodecs,highgui \
-  -D BUILD_TESTS=OFF -D BUILD_PERF_TESTS=OFF -D BUILD_EXAMPLES=OFF
-
-cmake --build /tmp/opencv/build
-cmake --install /tmp/opencv/build
-
-# Make sure the dynamic linker/auditwheel can find OpenCV .so files
-echo "/usr/local/lib" > /etc/ld.so.conf.d/opencv.conf
-ldconfig
+    gstreamer1-plugins-good gstreamer1-plugins-bad-free gstreamer1-plugins-bad-free-devel
 """
 
 [tool.cibuildwheel.linux]
-build-frontend = "pip"
-environment = { LD_LIBRARY_PATH="/usr/local/lib:${LD_LIBRARY_PATH}" }
+archs = ["x86_64", "aarch64"]
+environment = { CMAKE_ARGS = "-DWITH_GSTREAMER=ON -DWITH_GTK=ON" }
