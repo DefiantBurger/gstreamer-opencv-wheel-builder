@@ -4,7 +4,7 @@ on: [push, pull_request]
 
 jobs:
   build_wheels:
-    name: Build manylinux aarch64 wheels
+    name: Build manylinux x86_64 and aarch64 wheels
     runs-on: ubuntu-24.04
 
     steps:
@@ -28,13 +28,13 @@ jobs:
           output-dir: wheelhouse
           config-file: pyproject.toml
         env:
-          # Force a single selected build for quick iteration
-          CIBW_BUILD: cp312-manylinux_aarch64
+          # Build only manylinux wheels for the selected arches
+          CIBW_BUILD: cp312-manylinux_*
           # Use container engine docker (default) and enable pinned dependency constraints
           CIBW_DEPENDENCY_CONSTRAINTS: pinned
 
       - name: Upload wheels
         uses: actions/upload-artifact@v4
         with:
-          name: cibw-wheels-aarch64
+          name: cibw-wheels-manylinux
           path: ./wheelhouse/*.whl

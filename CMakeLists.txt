@@ -27,7 +27,7 @@ set(BUILD_DOCS OFF CACHE BOOL "" FORCE)
 set(BUILD_opencv_apps OFF CACHE BOOL "" FORCE)
 set(BUILD_JAVA OFF CACHE BOOL "" FORCE)
 set(BUILD_SHARED_LIBS ON CACHE BOOL "" FORCE)
-set(BUILD_LIST core,imgproc,imgcodecs,highgui,videoio,calib3d,features2d,flann,ml,objdetect,photo,dnn,stitching,video CACHE STRING "" FORCE)
+set(BUILD_LIST core,imgproc,videoio,imgcodecs,highgui CACHE STRING "" FORCE)
 
 set(PYTHON3_EXECUTABLE "${Python3_EXECUTABLE}" CACHE FILEPATH "" FORCE)
 set(PYTHON3_NUMPY_INCLUDE_DIRS "${Python3_NumPy_INCLUDE_DIRS}" CACHE PATH "" FORCE)
