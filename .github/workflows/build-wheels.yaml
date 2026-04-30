@@ -142,10 +142,14 @@ jobs:
                 libpng-dev libjpeg-dev libtiff-dev \
                 libopenblas-dev liblapack-dev \
                 mesa-common-dev libgl1-mesa-dev \
-                ninja-build
+                ninja-build \
+                zlib1g-dev \
+                libavcodec-dev
               rm -rf /var/lib/apt/lists/*
 
               gst-launch-1.0 --version
+
+              git config --global --add safe.directory /opencv-python
 
               pip3 install --break-system-packages scikit-build numpy wheel setuptools
 
