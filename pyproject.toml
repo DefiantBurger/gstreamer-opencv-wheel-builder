@@ -24,18 +24,32 @@ yum install -y gcc gcc-c++ make cmake pkgconfig git ninja-build \
     python3-devel
 
 git clone --depth 1 --branch 4.13.0 https://github.com/opencv/opencv.git /tmp/opencv
+
+# Find the Python paths cibuildwheel is using
+PYBIN=$(which python3)
+PYINC=$($PYBIN -c "import sysconfig; print(sysconfig.get_path('include'))")
+NUMPY_INC=$($PYBIN -c "import numpy; print(numpy.get_include())")
+
 cmake -S /tmp/opencv -B /tmp/opencv/build -G Ninja \
   -D CMAKE_BUILD_TYPE=Release \
   -D CMAKE_INSTALL_PREFIX=/usr/local \
   -D WITH_GSTREAMER=ON \
   -D WITH_IPP=OFF \
   -D BUILD_SHARED_LIBS=ON \
-  -D BUILD_TESTS=OFF -D BUILD_PERF_TESTS=OFF -D BUILD_EXAMPLES=OFF
+  -D BUILD_TESTS=OFF \
+  -D BUILD_PERF_TESTS=OFF \
+  -D BUILD_EXAMPLES=OFF \
+  -D BUILD_opencv_python3=ON \
+  -D BUILD_opencv_python2=OFF \
+  -D PYTHON3_EXECUTABLE=$PYBIN \
+  -D PYTHON3_INCLUDE_DIR=$PYINC \
+  -D PYTHON3_NUMPY_INCLUDE_DIRS=$NUMPY_INC \
+  -D OPENCV_PYTHON3_INSTALL_PATH=/tmp/cv2_staging \
+  -D BUILD_LIST=core,imgproc,videoio,imgcodecs,highgui
 
 cmake --build /tmp/opencv/build
 cmake --install /tmp/opencv/build
 
-# Make sure the dynamic linker/auditwheel can find OpenCV .so files
 echo "/usr/local/lib" > /etc/ld.so.conf.d/opencv.conf
 ldconfig
 """

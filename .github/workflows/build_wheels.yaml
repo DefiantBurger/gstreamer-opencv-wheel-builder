@@ -21,7 +21,7 @@ jobs:
       - name: Setup Docker buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Build wheels (manylinux aarch64)
+      - name: Build wheels (manylinux x86_64 and aarch64)
         uses: pypa/cibuildwheel@v3.4.1
         with:
           package-dir: .

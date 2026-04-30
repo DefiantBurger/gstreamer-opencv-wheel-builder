@@ -1,38 +1,29 @@
 cmake_minimum_required(VERSION 3.24)
-
 project(gstreamer_opencv_wheel_builder LANGUAGES C CXX)
 
 find_package(Python3 REQUIRED COMPONENTS Interpreter Development.Module NumPy)
 
-set(OPENCV_SOURCE_DIR "/tmp/opencv" CACHE PATH "Path to the OpenCV source tree")
+set(CV2_STAGING_DIR "/tmp/cv2_staging" CACHE PATH "Where cv2*.so was installed by before-all")
 
-if(NOT EXISTS "${OPENCV_SOURCE_DIR}/CMakeLists.txt")
-    message(FATAL_ERROR "Expected OpenCV source tree at ${OPENCV_SOURCE_DIR}")
+file(GLOB CV2_SO
+    "${CV2_STAGING_DIR}/cv2*.so"
+    "${CV2_STAGING_DIR}/cv2/python-*/cv2*.so"
+)
+
+if(NOT CV2_SO)
+    message(FATAL_ERROR
+        "Could not find cv2*.so under ${CV2_STAGING_DIR}. "
+        "Check that the before-all step completed successfully.")
 endif()
 
 if(DEFINED SKBUILD_PLATLIB_DIR)
-    set(OPENCV_PYTHON_INSTALL_DIR "${SKBUILD_PLATLIB_DIR}" CACHE PATH "Python install root" FORCE)
+    set(INSTALL_DEST "${SKBUILD_PLATLIB_DIR}")
 else()
-    set(OPENCV_PYTHON_INSTALL_DIR "${CMAKE_INSTALL_PREFIX}" CACHE PATH "Python install root" FORCE)
+    set(INSTALL_DEST "${Python3_SITELIB}")
 endif()
 
-set(WITH_GSTREAMER ON CACHE BOOL "" FORCE)
-set(WITH_IPP OFF CACHE BOOL "" FORCE)
-set(WITH_PYTHON3 ON CACHE BOOL "" FORCE)
-set(BUILD_opencv_python3 ON CACHE BOOL "" FORCE)
-set(BUILD_opencv_python2 OFF CACHE BOOL "" FORCE)
-set(BUILD_TESTS OFF CACHE BOOL "" FORCE)
-set(BUILD_PERF_TESTS OFF CACHE BOOL "" FORCE)
-set(BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
-set(BUILD_DOCS OFF CACHE BOOL "" FORCE)
-set(BUILD_opencv_apps OFF CACHE BOOL "" FORCE)
-set(BUILD_JAVA OFF CACHE BOOL "" FORCE)
-set(BUILD_SHARED_LIBS ON CACHE BOOL "" FORCE)
-set(BUILD_LIST core,imgproc,videoio,imgcodecs,highgui CACHE STRING "" FORCE)
-
-set(PYTHON3_EXECUTABLE "${Python3_EXECUTABLE}" CACHE FILEPATH "" FORCE)
-set(PYTHON3_NUMPY_INCLUDE_DIRS "${Python3_NumPy_INCLUDE_DIRS}" CACHE PATH "" FORCE)
-set(PYTHON3_PACKAGES_PATH "${OPENCV_PYTHON_INSTALL_DIR}" CACHE PATH "" FORCE)
-set(OPENCV_PYTHON3_INSTALL_PATH "${OPENCV_PYTHON_INSTALL_DIR}" CACHE PATH "" FORCE)
-
-add_subdirectory("${OPENCV_SOURCE_DIR}" "${CMAKE_BINARY_DIR}/opencv-build")
+foreach(SO_FILE ${CV2_SO})
+    install(FILES "${SO_FILE}"
+        DESTINATION "${INSTALL_DEST}"
+        RENAME "cv2${CMAKE_SHARED_LIBRARY_SUFFIX}")
+endforeach()
