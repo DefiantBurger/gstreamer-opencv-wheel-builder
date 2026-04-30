@@ -16,10 +16,10 @@ jobs:
       - uses: actions/checkout@v4   # checks out THIS repo (contains pyproject.toml)
 
       - name: Clone opencv-python
-        run: git clone --recursive https://github.com/opencv/opencv-python.git /tmp/opencv-python
+        run: git clone --recursive https://github.com/opencv/opencv-python.git opencv-python
 
       - name: Inject pyproject.toml
-        run: cp pyproject.toml /tmp/opencv-python/pyproject.toml
+        run: cp pyproject.toml opencv-python/pyproject.toml
 
       - uses: actions/setup-python@v5
         with:
@@ -29,10 +29,7 @@ jobs:
         run: pip install cibuildwheel
 
       - name: Build wheel
-        run: cibuildwheel --only "${{ matrix.python }}" /tmp/opencv-python
-        # Wheels are written to ./wheelhouse relative to cwd, not the project dir
-        env:
-          CIBW_OUTPUT_DIR: ${{ github.workspace }}/wheelhouse
+        run: cibuildwheel --only "${{ matrix.python }}" opencv-python
 
       - name: Upload wheel
         uses: actions/upload-artifact@v4
