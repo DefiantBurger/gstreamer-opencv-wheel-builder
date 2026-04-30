@@ -23,14 +23,16 @@ yum install -y gcc gcc-c++ make cmake pkgconfig git ninja-build \
     gstreamer1-plugins-good gstreamer1-plugins-bad-free \
     python3-devel
 
-# Install numpy into the build Python so cmake can find its headers
-$CIBW_PYTHON -m pip install "numpy>=1.26"
+git clone --depth 1 --branch 4.13.0 https://github.com/opencv/opencv.git /tmp/opencv
+"""
 
-PYBIN=$CIBW_PYTHON
+before-build = """
+set -eux
+
+# In before-build, `python` resolves to the correct cibuildwheel-managed Python
+PYBIN=$(which python)
 PYINC=$($PYBIN -c "import sysconfig; print(sysconfig.get_path('include'))")
 NUMPY_INC=$($PYBIN -c "import numpy; print(numpy.get_include())")
-
-git clone --depth 1 --branch 4.13.0 https://github.com/opencv/opencv.git /tmp/opencv
 
 cmake -S /tmp/opencv -B /tmp/opencv/build -G Ninja \
   -D CMAKE_BUILD_TYPE=Release \
