@@ -16,7 +16,7 @@ jobs:
       - uses: actions/checkout@v4   # checks out THIS repo (contains pyproject.toml)
 
       - name: Clone opencv-python
-        run: git clone --recursive https://github.com/opencv/opencv-python.git opencv-python
+        run: git clone --recursive --depth 1 https://github.com/opencv/opencv-python.git opencv-python
 
       - name: Inject pyproject.toml
         run: cp pyproject.toml opencv-python/pyproject.toml
