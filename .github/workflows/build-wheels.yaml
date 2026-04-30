@@ -1,0 +1,42 @@
+name: Build opencv-python wheel (GStreamer)
+
+on: [push, pull_request]
+
+jobs:
+  build-wheels:
+    name: Build wheel — ${{ matrix.python }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # Each compile takes ~20-40 min. Add versions as needed.
+        python: ["cp312-manylinux_x86_64"]
+
+    steps:
+      - uses: actions/checkout@v4   # checks out THIS repo (contains pyproject.toml)
+
+      - name: Clone opencv-python
+        run: git clone --recursive https://github.com/opencv/opencv-python.git /tmp/opencv-python
+
+      - name: Inject pyproject.toml
+        run: cp pyproject.toml /tmp/opencv-python/pyproject.toml
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install cibuildwheel
+        run: pip install cibuildwheel
+
+      - name: Build wheel
+        run: cibuildwheel --only "${{ matrix.python }}" /tmp/opencv-python
+        # Wheels are written to ./wheelhouse relative to cwd, not the project dir
+        env:
+          CIBW_OUTPUT_DIR: ${{ github.workspace }}/wheelhouse
+
+      - name: Upload wheel
+        uses: actions/upload-artifact@v4
+        with:
+          name: opencv-gstreamer-${{ matrix.python }}
+          path: wheelhouse/*.whl
+          retention-days: 90
