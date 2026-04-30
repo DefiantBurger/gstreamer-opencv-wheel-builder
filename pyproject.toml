@@ -20,40 +20,22 @@ set -eux
 yum install -y gcc gcc-c++ make cmake pkgconfig git ninja-build \
     gtk2-devel gtk3-devel \
     gstreamer1-devel gstreamer1-plugins-base-devel \
-    gstreamer1-plugins-good gstreamer1-plugins-bad-free \
-    python3-devel
+    gstreamer1-plugins-good gstreamer1-plugins-bad-free
 
 git clone --depth 1 --branch 4.13.0 https://github.com/opencv/opencv.git /tmp/opencv
 
-# Set up Python paths for the build
-PYTHON_EXE=$(python3 -c 'import sys; print(sys.executable)')
-PYTHON_SITE_PACKAGES=$(${PYTHON_EXE} -c 'import sysconfig; print(sysconfig.get_path("purelib"))')
-
+# Build OpenCV libraries (without Python bindings, those are built per-wheel)
 cmake -S /tmp/opencv -B /tmp/opencv/build -G Ninja \
   -D CMAKE_BUILD_TYPE=Release \
   -D CMAKE_INSTALL_PREFIX=/usr/local \
   -D WITH_GSTREAMER=ON \
   -D WITH_IPP=OFF \
-  -D WITH_PYTHON3=ON \
-  -D BUILD_opencv_python3=ON \
-  -D PYTHON3_EXECUTABLE="${PYTHON_EXE}" \
-  -D PYTHON3_INCLUDE_DIR=$(python3 -c 'import sysconfig; print(sysconfig.get_path("include"))') \
-  -D PYTHON3_NUMPY_INCLUDE_DIRS=$(python3 -c 'import numpy; print(numpy.get_include())') \
-  -D PYTHON3_PACKAGES_PATH="${PYTHON_SITE_PACKAGES}" \
-  -D OPENCV_PYTHON3_INSTALL_PATH="${PYTHON_SITE_PACKAGES}" \
   -D BUILD_SHARED_LIBS=ON \
-  -D BUILD_LIST=core,imgproc,videoio,imgcodecs,highgui,python3 \
+  -D BUILD_LIST=core,imgproc,videoio,imgcodecs,highgui \
   -D BUILD_TESTS=OFF -D BUILD_PERF_TESTS=OFF -D BUILD_EXAMPLES=OFF
 
 cmake --build /tmp/opencv/build
 cmake --install /tmp/opencv/build
-
-# Verify cv2 was installed
-if [ ! -d "${PYTHON_SITE_PACKAGES}/cv2" ]; then
-  echo "ERROR: cv2 was not installed to ${PYTHON_SITE_PACKAGES}"
-  find /usr/local -name "*cv2*" -type f 2>/dev/null | head -20
-  exit 1
-fi
 
 # Make sure the dynamic linker/auditwheel can find OpenCV .so files
 echo "/usr/local/lib" > /etc/ld.so.conf.d/opencv.conf

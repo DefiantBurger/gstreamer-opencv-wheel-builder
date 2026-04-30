@@ -1,51 +1,40 @@
 cmake_minimum_required(VERSION 3.24)
 
-project(gstreamer_opencv_wheel_builder LANGUAGES NONE)
+project(gstreamer_opencv_wheel_builder LANGUAGES C CXX)
 
-# The cv2 module was already built and installed by the before-all step.
-# We copy it into the wheel package directory.
+find_package(Python3 REQUIRED COMPONENTS Interpreter Development.Module NumPy)
 
-find_package(Python3 REQUIRED COMPONENTS Interpreter)
+set(OPENCV_SOURCE_DIR "/tmp/opencv" CACHE PATH "Path to the OpenCV source tree")
 
-# Get Python's site-packages paths
-execute_process(
-    COMMAND ${Python3_EXECUTABLE} -c "import sysconfig; print(sysconfig.get_path('purelib'))"
-    OUTPUT_VARIABLE PYTHON_PURELIB
-    OUTPUT_STRIP_TRAILING_WHITESPACE
-)
-
-execute_process(
-    COMMAND ${Python3_EXECUTABLE} -c "import site; print(site.getsitepackages()[0])"
-    OUTPUT_VARIABLE PYTHON_SITE_PACKAGES
-    OUTPUT_STRIP_TRAILING_WHITESPACE
-    ERROR_QUIET
-)
-
-# Search for cv2 in common locations
-find_path(CV2_LOCATION cv2 PATHS 
-    "${PYTHON_PURELIB}"
-    "${PYTHON_SITE_PACKAGES}"
-    "/opt/python/cp312-cp312/lib/python3.12/site-packages"
-    "/usr/local/lib/python3.12/site-packages"
-    "/usr/lib/python3.12/site-packages"
-    NO_DEFAULT_PATH
-)
-
-if(NOT CV2_LOCATION)
-    message(FATAL_ERROR 
-        "cv2 module not found.\n"
-        "Searched:\n"
-        "  ${PYTHON_PURELIB}\n"
-        "  ${PYTHON_SITE_PACKAGES}\n"
-        "OpenCV build in before-all may have failed.")
+if(NOT EXISTS "${OPENCV_SOURCE_DIR}/CMakeLists.txt")
+    message(FATAL_ERROR "Expected OpenCV source tree at ${OPENCV_SOURCE_DIR}")
 endif()
 
 if(DEFINED SKBUILD_PLATLIB_DIR)
-    set(WHEEL_PACKAGE_DIR "${SKBUILD_PLATLIB_DIR}")
+    set(OPENCV_PYTHON_INSTALL_DIR "${SKBUILD_PLATLIB_DIR}" CACHE PATH "Python install root" FORCE)
 else()
-    set(WHEEL_PACKAGE_DIR "${CMAKE_INSTALL_PREFIX}")
+    set(OPENCV_PYTHON_INSTALL_DIR "${CMAKE_INSTALL_PREFIX}" CACHE PATH "Python install root" FORCE)
 endif()
 
-# Copy the cv2 package into the wheel
-file(COPY "${CV2_LOCATION}/cv2" DESTINATION "${WHEEL_PACKAGE_DIR}")
-message(STATUS "Copied cv2 from ${CV2_LOCATION}/cv2 to ${WHEEL_PACKAGE_DIR}/cv2")
+# OpenCV configuration for this build
+set(WITH_GSTREAMER ON CACHE BOOL "" FORCE)
+set(WITH_IPP OFF CACHE BOOL "" FORCE)
+set(WITH_PYTHON3 ON CACHE BOOL "" FORCE)
+set(BUILD_opencv_python3 ON CACHE BOOL "" FORCE)
+set(BUILD_opencv_python2 OFF CACHE BOOL "" FORCE)
+set(BUILD_TESTS OFF CACHE BOOL "" FORCE)
+set(BUILD_PERF_TESTS OFF CACHE BOOL "" FORCE)
+set(BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
+set(BUILD_DOCS OFF CACHE BOOL "" FORCE)
+set(BUILD_opencv_apps OFF CACHE BOOL "" FORCE)
+set(BUILD_JAVA OFF CACHE BOOL "" FORCE)
+set(BUILD_SHARED_LIBS ON CACHE BOOL "" FORCE)
+set(BUILD_LIST core,imgproc,videoio,imgcodecs,highgui CACHE STRING "" FORCE)
+
+set(PYTHON3_EXECUTABLE "${Python3_EXECUTABLE}" CACHE FILEPATH "" FORCE)
+set(PYTHON3_NUMPY_INCLUDE_DIRS "${Python3_NumPy_INCLUDE_DIRS}" CACHE PATH "" FORCE)
+set(PYTHON3_PACKAGES_PATH "${OPENCV_PYTHON_INSTALL_DIR}" CACHE PATH "" FORCE)
+set(OPENCV_PYTHON3_INSTALL_PATH "${OPENCV_PYTHON_INSTALL_DIR}" CACHE PATH "" FORCE)
+
+# Build OpenCV (C++ libraries + Python bindings for this specific Python version)
+add_subdirectory("${OPENCV_SOURCE_DIR}" "${CMAKE_BINARY_DIR}/opencv-build")
