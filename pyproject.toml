@@ -1,17 +1,19 @@
-# This file replaces (or patches) the pyproject.toml inside a cloned opencv-python repo.
+# This file replaces the pyproject.toml inside a cloned opencv-python repo.
 #
-# Setup:
-#   git clone --recursive https://github.com/opencv/opencv-python.git
+# Local build (requires Ubuntu 22.04+ or 24.04 with GStreamer dev packages):
+#   git clone --recursive --depth 1 https://github.com/opencv/opencv-python.git
 #   cd opencv-python
-#   cp /path/to/this/pyproject.toml .        # overwrites the existing one
-#   pip install cibuildwheel
-#   cibuildwheel --only cp312-manylinux_x86_64
+#   cp /path/to/this/pyproject.toml .
+#   pip install scikit-build numpy wheel
+#   CMAKE_ARGS="-DWITH_GSTREAMER=ON -DWITH_GTK=ON" pip wheel . --no-deps -w ../wheelhouse
+#
+# In CI the build-wheels.yaml workflow handles everything inside an Ubuntu 24.04 container.
 #
 # Output wheels land in ./wheelhouse/
 # Install: pip install wheelhouse/opencv_python-*.whl
 #
 # Versions pinned:
-#   GStreamer built from source  →  1.24.2  (matches Makefile host)
+#   GStreamer from Ubuntu 24.04 apt  →  1.24.x  (matches Makefile host)
 
 [build-system]
 requires = [
@@ -24,104 +26,3 @@ requires = [
     "numpy",
 ]
 build-backend = "setuptools.build_meta"
-
-[tool.cibuildwheel]
-# CPython only, x86_64 only, skip musl (no GStreamer packages)
-build = "cp312-*"
-archs = ["x86_64"]
-skip  = ["*-musllinux*"]
-
-# manylinux_2_28 = AlmaLinux 8 base, dnf, glibc >= 2.28
-# Compatible with: Ubuntu 20.04+, Debian 11+, RHEL/Rocky/Alma 8+, Fedora 29+
-manylinux-x86_64-image = "manylinux_2_28"
-
-# Build GStreamer 1.24.2 from source — EPEL on AlmaLinux 8 only ships 1.16.x,
-# which is missing APIs used by OpenCV's cap_gstreamer.cpp and produces the
-# "No source in GStreamer pipeline" / ptr-assertion failures at runtime.
-#
-# The mono-repo tarball builds all core modules (gstreamer, gst-plugins-base,
-# gst-plugins-good, gst-plugins-bad, gst-plugins-ugly) in one meson pass.
-before-all = """
-    dnf install -y epel-release && \
-    dnf install -y \
-        cmake gcc gcc-c++ \
-        gtk2-devel gtk3-devel \
-        python3-devel \
-        mesa-libGL-devel \
-        libpng-devel libjpeg-devel libtiff-devel \
-        openblas-devel lapack-devel \
-        meson ninja-build \
-        bison flex gettext \
-        glib2-devel libxml2-devel \
-        alsa-lib-devel pulseaudio-libs-devel \
-        libX11-devel libXv-devel libXext-devel \
-        libogg-devel libvorbis-devel \
-        opus-devel \
-        libv4l-devel \
-        python3-pip && \
-    pip3 install meson && \
-    dnf clean all && \
-    \
-    GST_VERSION=1.24.2 && \
-    curl -fsSL "https://gstreamer.freedesktop.org/src/gstreamer/gstreamer-${GST_VERSION}.tar.xz" \
-        -o /tmp/gstreamer.tar.xz && \
-    curl -fsSL "https://gstreamer.freedesktop.org/src/gst-plugins-base/gst-plugins-base-${GST_VERSION}.tar.xz" \
-        -o /tmp/gst-plugins-base.tar.xz && \
-    curl -fsSL "https://gstreamer.freedesktop.org/src/gst-plugins-good/gst-plugins-good-${GST_VERSION}.tar.xz" \
-        -o /tmp/gst-plugins-good.tar.xz && \
-    curl -fsSL "https://gstreamer.freedesktop.org/src/gst-plugins-bad/gst-plugins-bad-${GST_VERSION}.tar.xz" \
-        -o /tmp/gst-plugins-bad.tar.xz && \
-    \
-    mkdir -p /tmp/gst-build && cd /tmp/gst-build && \
-    for pkg in gstreamer gst-plugins-base gst-plugins-good gst-plugins-bad; do \
-        tar xf /tmp/${pkg}.tar.xz; \
-    done && \
-    \
-    cd /tmp/gst-build/gstreamer-${GST_VERSION} && \
-    meson setup build --prefix=/usr --buildtype=release \
-        -Dintrospection=disabled && \
-    ninja -C build install && \
-    \
-    cd /tmp/gst-build/gst-plugins-base-${GST_VERSION} && \
-    meson setup build --prefix=/usr --buildtype=release \
-        -Dintrospection=disabled && \
-    ninja -C build install && \
-    \
-    cd /tmp/gst-build/gst-plugins-good-${GST_VERSION} && \
-    meson setup build --prefix=/usr --buildtype=release && \
-    ninja -C build install && \
-    \
-    cd /tmp/gst-build/gst-plugins-bad-${GST_VERSION} && \
-    meson setup build --prefix=/usr --buildtype=release \
-        -Dintrospection=disabled && \
-    ninja -C build install && \
-    \
-    ldconfig && \
-    rm -rf /tmp/gst-build /tmp/gst*.tar.xz && \
-    gst-launch-1.0 --version
-"""
-
-before-build = "pip install scikit-build numpy"
-
-# Smoke-test: verify GStreamer was compiled in and is the expected version
-test-command = """
-python -c "
-import cv2, sys
-build_info = cv2.getBuildInformation()
-lines = [l for l in build_info.split('\\n') if 'GStreamer' in l]
-ok = bool(lines and ('YES' in lines[0].upper() or '1' in lines[0]))
-print(lines[0].strip() if lines else 'GStreamer info not found')
-
-# Also check OpenCV version
-print(f'OpenCV version: {cv2.__version__}')
-"
-"""
-
-# CMAKE_ARGS is picked up by opencv-python's setup.py automatically.
-# Mirrors the Makefile's install-headed target.
-# PKG_CONFIG_PATH ensures cmake finds the GStreamer 1.24 libs we built above.
-# For headless: remove WITH_GTK and set ENABLE_HEADLESS=1 instead.
-[tool.cibuildwheel.environment]
-CMAKE_ARGS = "-DWITH_GSTREAMER=ON -DWITH_GTK=ON"
-ENABLE_HEADLESS = "0"
-PKG_CONFIG_PATH = "/usr/lib/pkgconfig:/usr/lib64/pkgconfig:/usr/share/pkgconfig"

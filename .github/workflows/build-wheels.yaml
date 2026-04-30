@@ -4,36 +4,89 @@ on: [push, pull_request]
 
 jobs:
   build-wheels:
-    name: Build wheel — ${{ matrix.python }}
+    name: Build wheel — cp312-linux_x86_64
+    # The job itself runs on the Actions host, but all build steps execute
+    # inside the Ubuntu 24.04 container below. Ubuntu 24.04 ships GStreamer
+    # 1.24.x in its standard repos, so no source compilation is needed.
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        # Each compile takes ~20-40 min. Add versions as needed.
-        python: ["cp312-manylinux_x86_64"]
+    container:
+      image: ubuntu:24.04
 
     steps:
-      - uses: actions/checkout@v4   # checks out THIS repo (contains pyproject.toml)
+      # container starts as root; no sudo needed
+      - name: Install system dependencies
+        env:
+          DEBIAN_FRONTEND: noninteractive
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends \
+            build-essential cmake pkg-config git ca-certificates \
+            python3 python3-pip python3-dev \
+            libgtk2.0-dev libgtk-3-dev \
+            libgstreamer1.0-dev \
+            libgstreamer-plugins-base1.0-dev \
+            libgstreamer-plugins-bad1.0-dev \
+            gstreamer1.0-plugins-base \
+            gstreamer1.0-plugins-good \
+            gstreamer1.0-plugins-bad \
+            gstreamer1.0-plugins-ugly \
+            gstreamer1.0-libav \
+            gstreamer1.0-tools \
+            libpng-dev libjpeg-dev libtiff-dev \
+            libopenblas-dev liblapack-dev \
+            mesa-common-dev libgl1-mesa-dev \
+            ninja-build
+          rm -rf /var/lib/apt/lists/*
+
+      - name: Verify GStreamer version
+        # Sanity-check before spending 30 min compiling OpenCV.
+        run: gst-launch-1.0 --version
 
       - name: Clone opencv-python
-        run: git clone --recursive --depth 1 https://github.com/opencv/opencv-python.git opencv-python
+        run: |
+          git clone \
+            --recursive \
+            --depth 1 \
+            https://github.com/opencv/opencv-python.git /opencv-python
 
       - name: Inject pyproject.toml
-        run: cp pyproject.toml opencv-python/pyproject.toml
+        # actions/checkout is not used here because the container may not have
+        # the Actions toolkit. We copy the file in from the checked-out workspace
+        # which is bind-mounted at $GITHUB_WORKSPACE by the Actions runner.
+        uses: actions/checkout@v4
 
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
+      - name: Copy pyproject.toml into opencv-python tree
+        run: cp "$GITHUB_WORKSPACE/pyproject.toml" /opencv-python/pyproject.toml
 
-      - name: Install cibuildwheel
-        run: pip install cibuildwheel
+      - name: Install Python build tools
+        run: pip3 install --break-system-packages scikit-build numpy wheel setuptools
 
       - name: Build wheel
-        run: cibuildwheel --only "${{ matrix.python }}" opencv-python
+        working-directory: /opencv-python
+        env:
+          CMAKE_ARGS: "-DWITH_GSTREAMER=ON -DWITH_GTK=ON"
+          ENABLE_HEADLESS: "0"
+        run: |
+          pip3 wheel . \
+            --no-deps \
+            --no-build-isolation \
+            -w /wheelhouse
+
+      - name: Smoke-test — verify GStreamer compiled in and OpenCV version
+        run: |
+          pip3 install --break-system-packages /wheelhouse/opencv_python-*.whl
+          python3 - <<'EOF'
+          import cv2, sys
+          lines = [l for l in cv2.getBuildInformation().split('\n') if 'GStreamer' in l]
+          ok = bool(lines and ('YES' in lines[0].upper() or '1' in lines[0]))
+          print(lines[0].strip() if lines else 'GStreamer info not found')
+          print(f'OpenCV version: {cv2.__version__}')
+          sys.exit(0 if ok else 1)
+          EOF
 
       - name: Upload wheel
         uses: actions/upload-artifact@v4
         with:
-          name: opencv-gstreamer-${{ matrix.python }}
-          path: wheelhouse/*.whl
+          name: opencv-gstreamer-cp312-linux_x86_64
+          path: /wheelhouse/*.whl
           retention-days: 90
