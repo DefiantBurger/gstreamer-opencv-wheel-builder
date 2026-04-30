@@ -28,6 +28,7 @@ cmake -S /tmp/opencv -B /tmp/opencv/build -G Ninja \
   -D CMAKE_BUILD_TYPE=Release \
   -D CMAKE_INSTALL_PREFIX=/usr/local \
   -D WITH_GSTREAMER=ON \
+  -D WITH_IPP=OFF \
   -D BUILD_SHARED_LIBS=ON \
   -D BUILD_TESTS=OFF -D BUILD_PERF_TESTS=OFF -D BUILD_EXAMPLES=OFF
 

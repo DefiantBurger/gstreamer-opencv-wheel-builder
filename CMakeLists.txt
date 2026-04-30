@@ -17,6 +17,7 @@ else()
 endif()
 
 set(WITH_GSTREAMER ON CACHE BOOL "" FORCE)
+set(WITH_IPP OFF CACHE BOOL "" FORCE)
 set(WITH_PYTHON3 ON CACHE BOOL "" FORCE)
 set(BUILD_opencv_python3 ON CACHE BOOL "" FORCE)
 set(BUILD_opencv_python2 OFF CACHE BOOL "" FORCE)
