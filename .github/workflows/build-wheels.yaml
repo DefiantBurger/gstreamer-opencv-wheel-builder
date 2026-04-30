@@ -3,17 +3,15 @@ name: Build opencv-python wheel (GStreamer)
 on: [push, pull_request]
 
 jobs:
-  build-wheels:
+
+  # ── x86-64 ────────────────────────────────────────────────────────────────
+  build-x86:
     name: Build wheel — cp312-linux_x86_64
-    # The job itself runs on the Actions host, but all build steps execute
-    # inside the Ubuntu 24.04 container below. Ubuntu 24.04 ships GStreamer
-    # 1.24.x in its standard repos, so no source compilation is needed.
     runs-on: ubuntu-latest
     container:
       image: ubuntu:24.04
 
     steps:
-      # container starts as root; no sudo needed
       - name: Install system dependencies
         env:
           DEBIAN_FRONTEND: noninteractive
@@ -39,7 +37,6 @@ jobs:
           rm -rf /var/lib/apt/lists/*
 
       - name: Verify GStreamer version
-        # Sanity-check before spending 30 min compiling OpenCV.
         run: gst-launch-1.0 --version
 
       - name: Clone opencv-python
@@ -49,11 +46,7 @@ jobs:
             --depth 1 \
             https://github.com/opencv/opencv-python.git /opencv-python
 
-      - name: Inject pyproject.toml
-        # actions/checkout is not used here because the container may not have
-        # the Actions toolkit. We copy the file in from the checked-out workspace
-        # which is bind-mounted at $GITHUB_WORKSPACE by the Actions runner.
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Copy pyproject.toml into opencv-python tree
         run: cp "$GITHUB_WORKSPACE/pyproject.toml" /opencv-python/pyproject.toml
@@ -72,7 +65,7 @@ jobs:
             --no-build-isolation \
             -w /wheelhouse
 
-      - name: Smoke-test — verify GStreamer compiled in and OpenCV version
+      - name: Smoke-test
         run: |
           pip3 install --break-system-packages /wheelhouse/opencv_python-*.whl
           python3 - <<'EOF'
@@ -85,8 +78,99 @@ jobs:
           EOF
 
       - name: Upload wheel
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: opencv-gstreamer-cp312-linux_x86_64
           path: /wheelhouse/*.whl
+          retention-days: 90
+
+  # ── ARM64 (Raspberry Pi 4B) ───────────────────────────────────────────────
+  build-arm64:
+    name: Build wheel — cp312-linux_aarch64 (Raspberry Pi 4B)
+    runs-on: ubuntu-latest
+
+    steps:
+      # QEMU lets the x86_64 Actions runner execute arm64 binaries transparently.
+      # docker/setup-qemu-action registers the binfmt_misc handlers for us.
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v4
+        with:
+          platforms: arm64
+
+      - uses: actions/checkout@v6
+
+      - name: Clone opencv-python
+        run: |
+          git clone \
+            --recursive \
+            --depth 1 \
+            https://github.com/opencv/opencv-python.git /tmp/opencv-python
+
+      - name: Copy pyproject.toml into opencv-python tree
+        run: cp pyproject.toml /tmp/opencv-python/pyproject.toml
+
+      - name: Build wheel inside Raspberry Pi OS (arm64)
+        # dtcooper/raspberrypi-os:python3.12-bookworm is a multi-arch image that
+        # includes linux/arm64. Running it under QEMU gives us the exact same apt
+        # repos and library ABI as a real Pi 4B running Raspberry Pi OS Bookworm
+        # (64-bit). GStreamer 1.22.x ships in the standard Bookworm repo, so no
+        # source build is needed.
+        #
+        # headless build: CMAKE_ARGS omits WITH_GTK and sets ENABLE_HEADLESS=1,
+        # mirroring the Makefile's install-headless target.
+        run: |
+          docker run --rm \
+            --platform linux/arm64 \
+            -v /tmp/opencv-python:/opencv-python \
+            -v /tmp/wheelhouse:/wheelhouse \
+            dtcooper/raspberrypi-os:python3.12-bookworm \
+            bash -exc '
+              export DEBIAN_FRONTEND=noninteractive
+              apt-get update
+              apt-get install -y --no-install-recommends \
+                build-essential cmake pkg-config git \
+                python3-pip python3-dev \
+                libgstreamer1.0-dev \
+                libgstreamer-plugins-base1.0-dev \
+                libgstreamer-plugins-bad1.0-dev \
+                gstreamer1.0-plugins-base \
+                gstreamer1.0-plugins-good \
+                gstreamer1.0-plugins-bad \
+                gstreamer1.0-plugins-ugly \
+                gstreamer1.0-libav \
+                gstreamer1.0-tools \
+                libpng-dev libjpeg-dev libtiff-dev \
+                libopenblas-dev liblapack-dev \
+                mesa-common-dev libgl1-mesa-dev \
+                ninja-build
+              rm -rf /var/lib/apt/lists/*
+
+              gst-launch-1.0 --version
+
+              pip3 install --break-system-packages scikit-build numpy wheel setuptools
+
+              cd /opencv-python
+              CMAKE_ARGS="-DWITH_GSTREAMER=ON -DENABLE_HEADLESS=1" \
+              ENABLE_HEADLESS=1 \
+                pip3 wheel . \
+                  --no-deps \
+                  --no-build-isolation \
+                  -w /wheelhouse
+
+              pip3 install --break-system-packages /wheelhouse/opencv_python_headless-*.whl
+              python3 - <<EOF
+          import cv2, sys
+          lines = [l for l in cv2.getBuildInformation().split("\n") if "GStreamer" in l]
+          ok = bool(lines and ("YES" in lines[0].upper() or "1" in lines[0]))
+          print(lines[0].strip() if lines else "GStreamer info not found")
+          print(f"OpenCV version: {cv2.__version__}")
+          sys.exit(0 if ok else 1)
+          EOF
+            '
+
+      - name: Upload wheel
+        uses: actions/upload-artifact@v7
+        with:
+          name: opencv-gstreamer-cp312-linux_aarch64
+          path: /tmp/wheelhouse/*.whl
           retention-days: 90
