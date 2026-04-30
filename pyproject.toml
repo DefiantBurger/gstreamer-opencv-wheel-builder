@@ -32,17 +32,9 @@ set -eux
 pip install "numpy>=1.26"
 
 PYBIN=$(which python)
-PYVER=$($PYBIN -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')")
 PYINC=$($PYBIN -c "import sysconfig; print(sysconfig.get_path('include'))")
 PYLIB=$($PYBIN -c "import sysconfig; print(sysconfig.get_config_var('LIBDIR'))")
 NUMPY_INC=$($PYBIN -c "import numpy; print(numpy.get_include())")
-
-echo "=== Python info ==="
-echo "PYBIN=$PYBIN"
-echo "PYVER=$PYVER"
-echo "PYINC=$PYINC"
-echo "PYLIB=$PYLIB"
-echo "NUMPY_INC=$NUMPY_INC"
 
 rm -rf /tmp/opencv/build /tmp/cv2_staging
 mkdir -p /tmp/cv2_staging
@@ -65,11 +57,20 @@ cmake -S /tmp/opencv -B /tmp/opencv/build -G Ninja \
   -D OPENCV_PYTHON3_INSTALL_PATH=/tmp/cv2_staging \
   -D BUILD_LIST=core,imgproc,videoio,imgcodecs,highgui,python3
 
+echo "=== OpenCV Python detection ==="
+grep -i python /tmp/opencv/build/CMakeCache.txt | grep -v "^//" | grep -v "^#"
+
+echo "=== OpenCV modules to be built ==="
+grep "BUILD_opencv" /tmp/opencv/build/CMakeCache.txt | grep -v "^//" | grep -v "^#"
+
 cmake --build /tmp/opencv/build
 cmake --install /tmp/opencv/build
 
 echo "=== cv2 staging contents ==="
 find /tmp/cv2_staging -type f
+
+echo "=== searching for cv2 anywhere ==="
+find / -name "cv2*.so" 2>/dev/null || true
 """
 
 [tool.cibuildwheel.linux]
