@@ -162,6 +162,9 @@ jobs:
                   -w /wheelhouse
 
               pip3 install --break-system-packages /wheelhouse/opencv_python_headless-*.whl
+
+              cd /tmp
+
               python3 - <<EOF
           import cv2, sys
           lines = [l for l in cv2.getBuildInformation().split("\n") if "GStreamer" in l]
