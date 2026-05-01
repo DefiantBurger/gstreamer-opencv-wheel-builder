@@ -84,6 +84,16 @@ jobs:
           path: /wheelhouse/*.whl
           retention-days: 90
 
+      - name: Create/Update latest release (x86_64)
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: softprops/action-gh-release@v3
+        with:
+          tag_name: latest-x86_64
+          name: Latest Build (x86_64)
+          files: /wheelhouse/*.whl
+          prerelease: false
+          make_latest: false
+
   # ── ARM64 (Raspberry Pi 4B) ───────────────────────────────────────────────
   build-arm64:
     name: Build wheel — cp312-linux_aarch64 (Raspberry Pi 4B)
@@ -181,3 +191,13 @@ jobs:
           name: opencv-gstreamer-cp312-linux_aarch64
           path: /tmp/wheelhouse/*.whl
           retention-days: 90
+
+      - name: Create/Update latest release (arm64)
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: softprops/action-gh-release@v3
+        with:
+          tag_name: latest-arm64
+          name: Latest Build (arm64)
+          files: /tmp/wheelhouse/*.whl
+          prerelease: false
+          make_latest: false

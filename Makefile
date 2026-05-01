@@ -1,8 +1,10 @@
-.PHONY: deps install-headed install-headless clean check
+.PHONY: deps source-build-headed source-build-headless prebuilt-headed prebuilt-headless check
 
 VENV_BIN ?= $(shell if [ -d ".venv" ]; then echo ".venv/bin"; elif [ -d "env" ]; then echo "env/bin"; else echo ".venv/bin"; fi)
 
 run_python_cmd = $(shell $(VENV_BIN)/python -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')")
+
+GITHUB_REPO := DefiantBurger/gstreamer-opencv-wheel-builder
 
 deps:
 	@echo "Installing GStreamer and OpenCV build dependencies..."
@@ -16,7 +18,7 @@ deps:
 		gstreamer1.0-x gstreamer1.0-alsa gstreamer1.0-gl gstreamer1.0-gtk3 \
 		gstreamer1.0-qt5 gstreamer1.0-pulseaudio python3-dev python$(run_python_cmd)-dev
 
-install-headed: deps
+source-build-headed: deps
 	@echo "Uninstalling any existing OpenCV packages from the virtual environment..."
 	$(VENV_BIN)/pip uninstall -y opencv-python opencv-contrib-python opencv-python-headless || true
 	@echo "Building opencv-python from source with GStreamer support..."
@@ -24,13 +26,31 @@ install-headed: deps
 	$(VENV_BIN)/pip install wheel scikit-build numpy
 	CMAKE_ARGS="-DWITH_GSTREAMER=ON -DWITH_GTK=ON -DPYTHON3_EXECUTABLE=$$(pwd)/$(VENV_BIN)/python" $(VENV_BIN)/pip install --no-cache-dir --no-binary opencv-python opencv-python
 
-install-headless: deps
+source-build-headless: deps
 	@echo "Uninstalling any existing OpenCV packages from the virtual environment..."
 	$(VENV_BIN)/pip uninstall -y opencv-python opencv-contrib-python opencv-python-headless || true
 	@echo "Building opencv-python-headless from source with GStreamer support..."
 	@echo "NOTE: This compiles OpenCV from scratch and may take 15-60+ minutes depending on your CPU."
 	$(VENV_BIN)/pip install wheel scikit-build numpy
 	CMAKE_ARGS="-DWITH_GSTREAMER=ON -DPYTHON3_EXECUTABLE=$$(pwd)/$(VENV_BIN)/python" $(VENV_BIN)/pip install --no-binary opencv-python-headless opencv-python-headless
+
+prebuilt-headed:
+	@echo "Uninstalling any existing OpenCV packages from the virtual environment..."
+	$(VENV_BIN)/pip uninstall -y opencv-python opencv-contrib-python opencv-python-headless || true
+	@echo "Downloading latest prebuilt opencv-python wheel (x86_64) from GitHub..."
+	mkdir -p /tmp/opencv-wheels
+	cd /tmp/opencv-wheels && \
+	wget -q --show-progress https://github.com/$(GITHUB_REPO)/releases/download/latest-x86_64/opencv_python-*.whl && \
+	$(VENV_BIN)/pip install /tmp/opencv-wheels/opencv_python-*.whl
+
+prebuilt-headless:
+	@echo "Uninstalling any existing OpenCV packages from the virtual environment..."
+	$(VENV_BIN)/pip uninstall -y opencv-python opencv-contrib-python opencv-python-headless || true
+	@echo "Downloading latest prebuilt opencv-python-headless wheel (arm64) from GitHub..."
+	mkdir -p /tmp/opencv-wheels
+	cd /tmp/opencv-wheels && \
+	wget -q --show-progress https://github.com/$(GITHUB_REPO)/releases/download/latest-arm64/opencv_python_headless-*.whl && \
+	$(VENV_BIN)/pip install /tmp/opencv-wheels/opencv_python_headless-*.whl
 
 check:
 	@echo "Checking OpenCV GStreamer support..."
