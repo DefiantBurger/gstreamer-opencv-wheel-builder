@@ -8,6 +8,8 @@ jobs:
   build-x86:
     name: Build wheel — cp312-linux_x86_64
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     container:
       image: ubuntu:24.04
 
@@ -98,6 +100,8 @@ jobs:
   build-arm64:
     name: Build wheel — cp312-linux_aarch64 (Raspberry Pi 4B)
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
 
     steps:
       # QEMU lets the x86_64 Actions runner execute arm64 binaries transparently.
