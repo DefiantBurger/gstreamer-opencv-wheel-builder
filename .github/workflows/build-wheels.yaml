@@ -6,7 +6,7 @@ jobs:
 
   # ── x86-64 ────────────────────────────────────────────────────────────────
   build-x86:
-    name: Build wheel — cp312-linux_x86_64
+    name: Build wheel — cp313-linux_x86_64
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -82,7 +82,7 @@ jobs:
       - name: Upload wheel
         uses: actions/upload-artifact@v7
         with:
-          name: opencv-gstreamer-cp312-linux_x86_64
+          name: opencv-gstreamer-cp313-linux_x86_64
           path: /wheelhouse/*.whl
           retention-days: 90
 
@@ -98,7 +98,7 @@ jobs:
 
   # ── ARM64 (Raspberry Pi 4B) ───────────────────────────────────────────────
   build-arm64:
-    name: Build wheel — cp312-linux_aarch64 (Raspberry Pi 4B)
+    name: Build wheel — cp313-linux_aarch64 (Raspberry Pi 4B)
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -124,7 +124,7 @@ jobs:
         run: cp pyproject.toml /tmp/opencv-python/pyproject.toml
 
       - name: Build wheel inside Raspberry Pi OS (arm64)
-        # dtcooper/raspberrypi-os:python3.12-bookworm is a multi-arch image that
+        # dtcooper/raspberrypi-os:python3.13-bookworm is a multi-arch image that
         # includes linux/arm64. Running it under QEMU gives us the exact same apt
         # repos and library ABI as a real Pi 4B running Raspberry Pi OS Bookworm
         # (64-bit). GStreamer 1.22.x ships in the standard Bookworm repo, so no
@@ -137,7 +137,7 @@ jobs:
             --platform linux/arm64 \
             -v /tmp/opencv-python:/opencv-python \
             -v /tmp/wheelhouse:/wheelhouse \
-            dtcooper/raspberrypi-os:python3.12-bookworm \
+            dtcooper/raspberrypi-os:python3.13-bookworm \
             bash -exc '
               export DEBIAN_FRONTEND=noninteractive
               apt-get update
@@ -192,7 +192,7 @@ jobs:
       - name: Upload wheel
         uses: actions/upload-artifact@v7
         with:
-          name: opencv-gstreamer-cp312-linux_aarch64
+          name: opencv-gstreamer-cp313-linux_aarch64
           path: /tmp/wheelhouse/*.whl
           retention-days: 90
 
